@@ -1,0 +1,51 @@
+{
+    "count": 2,
+    "user": [
+        {
+            "id": "918fc7f7-ca67-4ec9-9a5f-8caa7073f91d", 
+            "username": "fc56908", 
+            "firstname": "joao", 
+            "lastname": "oliveira", 
+            "email": "fc56908@alunos.fc.ul.pt", 
+            "created": "2026-02-13T15:35:38+0000", 
+            "state": "enabled", 
+            "account": "fc56908", 
+            "accounttype": 0, 
+            "usersource": "saml2", 
+            "roleid": "45153dca-dde0-11f0-8032-cec6e5fcc99e", 
+            "roletype": "User", 
+            "rolename": "User", 
+            "domainid": "2c532157-dde0-11f0-8ae4-cec6e5fcc99e", 
+            "domain": "ROOT", 
+            "accountid": "261e51cd-4504-4e48-899b-7a60984fe623", 
+            "iscallerchilddomain": "False", 
+            "isdefault": "False", 
+            "is2faenabled": "False", 
+            "is2famandated": "False", 
+            "apikeyaccess": "INHERIT"
+        }, 
+        {
+            "id": "3bd36b95-b851-4792-a738-86b77f430b71", 
+            "username": "fc56908", 
+            "firstname": "Joao", 
+            "lastname": "Oliveira", 
+            "email": "fc56908@alunos.fc.ul.pt", 
+            "created": "2026-02-17T14:46:58+0000", 
+            "state": "enabled", 
+            "account": "fc56908", 
+            "accounttype": 0, 
+            "usersource": "native", 
+            "roleid": "e7580ffb-8931-4dea-9659-481c7d1d7c71", 
+            "roletype": "User", 
+            "rolename": "StudentRole", 
+            "domainid": "1488a55a-800b-472f-94d7-7273a00a1208", 
+            "domain": "students", 
+            "accountid": "74af088e-b88f-4638-a51e-fd5d8aff3187", 
+            "iscallerchilddomain": "True", 
+            "isdefault": "False", 
+            "is2faenabled": "False", 
+            "is2famandated": "False", 
+            "apikeyaccess": "INHERIT"
+        }
+    ]
+}

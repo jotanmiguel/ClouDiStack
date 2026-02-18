@@ -1,0 +1,18 @@
+[project]
+name = "cloudstack-provisioner"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "cs",
+  "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+addopts = "-q"
