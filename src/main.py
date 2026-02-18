@@ -1,9 +1,15 @@
+import os
 from cs import CloudStack
+from dotenv import load_dotenv
 
-cs = CloudStack(
-    endpoint="http://10.10.5.52:8080/client/api",
-    key="5VRUsYejS6eji7AOFM-pbiZlu-i9aIXoEvHUdN1onimGL5vcC1zp1X1HDcrQjvbl47k96hA-7z1c8c3V6Re6tg",
-    secret="YBW-Cl8CJZnTJp14laXW0zvArfso-YHfwoq6fBNI9HWZ5SuBYv6KLE97A4lNlq6lpzt_mPUFCdDzFa6ZhyqSqA",
-)
+load_dotenv()
 
-print(cs.listUsers(listall="true", username="fc56908"))
+def get_cs() -> CloudStack:
+    endpoint = os.getenv("CLOUDSTACK_ENDPOINT")
+    key = os.getenv("CLOUDSTACK_KEY")
+    secret = os.getenv("CLOUDSTACK_SECRET")
+
+    if not endpoint or not key or not secret:
+        raise RuntimeError("Faltam variáveis CLOUDSTACK_ENDPOINT/KEY/SECRET no .env")
+
+    return CloudStack(endpoint=endpoint, key=key, secret=secret)
