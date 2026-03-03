@@ -1,18 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "cloudstack-provisioner"
+name = "cloudi"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
   "cs",
-  "python-dotenv",
+  "pydantic",
+  "python-dotenv"
 ]
 
-[project.optional-dependencies]
-dev = [
-  "pytest",
-  "pytest-cov",
-]
+[project.scripts]
+cloudi = "cloudi.cli:main"
 
-[tool.pytest.ini_options]
-testpaths = ["src/tests"]
-addopts = "-q"
+[tool.setuptools.packages.find]
+where = ["src"]
