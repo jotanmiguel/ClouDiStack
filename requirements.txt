@@ -1,2 +1,4 @@
 cs[async,highlight]
 pydantic
+python-dotenv
+python-keycloak==5.4.0

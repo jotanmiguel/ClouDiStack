@@ -207,3 +207,4 @@ marimo/_lsp/
 __marimo__/
 src/cloudstack.ini
 .vscode/settings.json
+src/ks2cs/state.json
