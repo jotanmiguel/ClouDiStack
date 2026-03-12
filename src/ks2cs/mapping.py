@@ -6,6 +6,15 @@ class ProvisioningDecision:
     role: str  # ex: "student" | "staff"
 
 def decide_role_from_email(email: str) -> str:
+    """
+    Decides the role based on the email. this could be overwritten.
+
+    Args:
+        email (str): The email of the user.
+
+    Returns:
+        str: role name.
+    """
     dom = email.split("@", 1)[1].lower().strip()
     match dom:
         case "alunos.fc.ul.pt":

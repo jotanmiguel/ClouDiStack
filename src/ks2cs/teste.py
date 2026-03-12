@@ -1,17 +1,17 @@
-from pydoc import cli
+from cloudi.user_ops import get_all_accounts
+from services.keycloak_service import get_keycloak
+from cloudstack.cs_client import get_cs
 
-from keycloak import KeycloakAdmin, KeycloakOpenIDConnection
+cs = get_cs()
+kc = get_keycloak()
 
-from ks2cs import keycloak_client
+keycloak_users = kc.get_users()
+clodstack_users = get_all_accounts(cs)
 
-client = keycloak_client.KeycloakClient(
-    server_url="https://10.10.5.52:8443/",
-    username='admin',
-    password='admin123',
-    auth_realm="master",
-    verify_tls=False,
-    target_realm="Cloud-DI",
-    client_id="admin-cli",
-)
+print("Keycloak users:")
+for user in keycloak_users:
+    print(user)
 
-print(client.get_admin_events())
+print("\nCloudStack users:")
+for user in clodstack_users:
+    print(user)

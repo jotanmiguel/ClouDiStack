@@ -1,10 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import pandas as pd
 from typing import Any, Dict, List, Optional
 import logging
-
 from keycloak import KeycloakAdmin, KeycloakOpenIDConnection
-from models.keycloak_models import KeycloakUserCreateEvent, to_user_create_event
+from models.keycloak_models import KeycloakAdminEvent, KeycloakUserCreateEvent, to_user_create_event, KeycloakUser
 
 log = logging.getLogger("kc2cs.keycloak")
 
@@ -15,53 +15,54 @@ class AdminEvent:
     resource_type: str
     time_ms: int
 
-class KeycloakClient:
+class KeycloakClient(KeycloakAdmin):
     """
     Autentica num realm (auth_realm, tipicamente master) e opera noutro (target_realm).
     """
-    def __init__(
-        self,
-        server_url: str,
-        username: str,
-        password: str,
-        client_id: str = "admin-cli",
-        verify_tls: bool = True,
-        auth_realm: str = "master",
-        target_realm: Optional[str] = None,
-    ):
-        # Se não passares target_realm, por defeito opera no mesmo realm do auth.
-        target_realm = target_realm or auth_realm
-
-        self.auth_realm = auth_realm
-        self.target_realm = target_realm
+    def __init__(self, config):
+        log.info("Connecting to Keycloak server at %s with auth_realm=%s and client_id=%s", config.kc_server_url, config.kc_realm, config.kc_client_id)
 
         self._conn = KeycloakOpenIDConnection(
-            server_url=server_url, 
-            realm_name=auth_realm, 
-            client_id=client_id, 
-            username=username, 
-            password=password, 
-            verify=verify_tls,
+            server_url=config.kc_server_url, 
+            realm_name=config.kc_realm, 
+            client_id=config.kc_client_id, 
+            username=config.kc_username, 
+            password=config.kc_password, 
+            verify=config.kc_verify_tls,
             )
 
         self._admin = KeycloakAdmin(connection=self._conn)
+        self._admin.change_current_realm(config.kc_realm_name)
 
-        # 🔥 garante que os endpoints /admin/realms/{realm}/... usam o realm alvo
-        self._admin.change_current_realm(self.target_realm)
-
-        log.info("KeycloakClient ready. auth_realm=%s target_realm=%s", self.auth_realm, self.target_realm)
-
-
-    def get_admin_events(self, query: dict = {}) -> List:
-        print("CURRENT REALM:", self._admin.get_current_realm())
-
-        raw_events: List[dict[str, Any]] = self._admin.get_admin_events(query)
-
-        return raw_events
+        log.info("KeycloakClient ready. auth_realm=%s target_realm=%s", config.kc_realm, config.kc_realm)
+        
+    def __getattr__(self, name):
+        """
+        Forward unknown attributes to KeycloakAdmin.
+        """
+        return getattr(self._admin, name)
+        
+    def get_client(self) -> KeycloakAdmin:
+        return self._admin
     
-    def get_user_create_events(self, max_results: int = 50) -> List[KeycloakUserCreateEvent]:
-        raw_events = self._admin.get_admin_events({"max": max_results})
 
+
+    def get_admin_events(self, query: dict = {}) -> List[KeycloakAdminEvent]:
+        raw_events: List[dict[str, Any]] = self._admin.get_admin_events(query)
+        return [KeycloakAdminEvent(**ev) for ev in raw_events]
+
+    def get_user_create_events(self, max_results: int | None = None, dateFrom: float = 0, dateTo: float = 0) -> List[KeycloakUserCreateEvent]:
+        
+        datefrom = pd.to_datetime(dateFrom, unit='ms')
+        dateto = pd.to_datetime(dateTo, unit='ms')
+        
+        if max_results is None:
+            log.info("Fetching Keycloak admin events with all results with dateFrom=%s dateTo=%s", datefrom, dateto)
+            raw_events = self._admin.get_admin_events({"dateFrom": datefrom, "dateTo": dateto})
+        else:
+            log.info("Fetching Keycloak admin events with max_results=%d with dateFrom=%s dateTo=%s", max_results, datefrom, dateto)
+            raw_events = self._admin.get_admin_events({"dateFrom": datefrom, "dateTo": dateto, "max": max_results})
+            
         out: List[KeycloakUserCreateEvent] = []
         for raw in raw_events:
             ev = to_user_create_event(raw)
@@ -72,12 +73,14 @@ class KeycloakClient:
         out.sort(key=lambda e: e.time_ms)
         return out
 
-    def get_user(self, user_id: str) -> Dict[str, Any]:
-        return self._admin.get_user(user_id)
+    def get_user(self, user_id: str) -> KeycloakUser:
+        data = self._admin.get_user(user_id=user_id)
+        print(data)
+        return KeycloakUser(**data)
 
     def update_user(self, user_id: str, payload: Dict[str, Any]) -> None:
         self._admin.update_user(user_id=user_id, payload=payload)
-
+    
     @staticmethod
     def extract_user_id(resource_path: str) -> Optional[str]:
         # normalmente: "users/<uuid>"

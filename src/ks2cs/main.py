@@ -1,17 +1,12 @@
-import os
 import time
-
-from dotenv import load_dotenv
-from ks2cs.keycloak_client import KeycloakClient
-
+from dotenv import get_key, load_dotenv
 import cloudstack
-import cloudstack.cs_client
-import cloudstack.session
-from ks2cs.provisioner import Provisioner
+from cloudstack.cs_client import get_cs
 from ks2cs.config import load_settings
+from services.keycloak_service import get_keycloak
 from ks2cs.logging_conf import setup_logging
+from ks2cs.provisioner import Provisioner
 from ks2cs.state_store import JsonStateStore
-
 
 def main() -> None:
     load_dotenv()
@@ -19,17 +14,9 @@ def main() -> None:
 
     s = load_settings()
 
-    kc = KeycloakClient(
-        server_url=s.kc_server_url,
-        auth_realm=s.kc_realm,
-        client_id=s.kc_client_id,
-        username=s.kc_username,
-        password=s.kc_password,
-        verify_tls=s.kc_verify_tls,
-        target_realm=s.kc_realm_name,
-    )
+    kc = get_keycloak()
     
-    cs = cloudstack.cs_client.get_cs()
+    cs = get_cs()
 
     store = JsonStateStore(s.state_path)
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import email
+from os import access
 from typing import Any, Dict, Optional
 import json
 
@@ -19,7 +21,31 @@ class KeycloakUserCreateEvent:
     def time(self) -> float:
         """Timestamp em segundos (útil para logs)."""
         return self.time_ms / 1000.0
-
+    
+@dataclass(frozen=True)
+class KeycloakUser:
+    id: str
+    emailVerified: bool
+    createdTimestamp: int
+    enabled: bool
+    
+    # optional
+    email: Optional[str] = None
+    username: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    totp: bool = False
+    notBefore: Optional[int] = 0
+    disableableCredentialTypes: list[str] = field(default_factory=list)
+    requiredActions: list[str] = field(default_factory=list)
+    access: Dict[str, Any] = field(default_factory=dict)
+    
+@dataclass(frozen=True)
+class KeycloakAdminEvent:
+    resource_path: str
+    operation_type: str
+    resource_type: str
+    time_ms: int
 
 # ---------- parsing / normalização ----------
 

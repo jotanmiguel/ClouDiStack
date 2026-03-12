@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import os
-
 from dotenv import load_dotenv
 
 def _get_bool(name: str, default: bool) -> bool:
