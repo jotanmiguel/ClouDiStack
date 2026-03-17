@@ -4,8 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from cs import CloudStack, CloudStackApiException
 
-from cloudstack.cs_client import get_cs
-from ks2cs import teste
+from services.cloudstack_service import get_cloudstack
 from utils.telemetry import instrument
 
 # ---------- helpers ----------
@@ -209,7 +208,7 @@ def duplicate_role(cs: CloudStack, *, source_role_name: str | None = None, sourc
 
     
 if __name__ == "__main__":
-    cs = get_cs()
+    cs = get_cloudstack()
     
     print("List all roles permissions:", _list_role_permissions(cs, role_id="45153dca-dde0-11f0-8032-cec6e5fcc99e"))
     

@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-ClouDiStack — Keycloak Webhook Receiver
-Recebe eventos do keycloak-events e dispara ações no CloudStack.
-"""
 
 from __future__ import annotations
 
@@ -14,8 +10,6 @@ from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 
-sys.path.insert(0, str(Path(__file__).parent))
-
 from cloudstack.cs_client import get_cs
 from ks2cs.config import load_settings
 from ks2cs.keycloak_client import KeycloakClient
@@ -24,6 +18,8 @@ from ks2cs.mapping import decide_role_from_email
 from models.keycloak_models import to_user_create_event
 from user_ops import disable_staff, disable_student, update_staff, update_student
 from utils.identity import gen_username
+
+sys.path.insert(0, str(Path(__file__).parent))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,7 +51,6 @@ async def startup():
         )
     _cs = get_cs()
     log.info("✅ Keycloak e CloudStack prontos")
-
 
 # ─── Handlers ────────────────────────────────────────────────────────────────
 

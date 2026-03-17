@@ -1,5 +1,5 @@
-from ks2cs.keycloak_client import KeycloakClient
-from ks2cs.config import load_settings
+from clients.keycloak.client import KeycloakClient
+from config.config import load_settings
 _kc_instance: KeycloakClient | None = None
 
 

@@ -5,8 +5,6 @@ from os import access
 from typing import Any, Dict, Optional
 import json
 
-from attr import attributes
-
 @dataclass(frozen=True)
 class KeycloakUserCreateEvent:
     """Evento útil para provisionamento (sem dados sensíveis/ruído)."""
@@ -32,7 +30,6 @@ class KeycloakUser:
     enabled: bool
     
     # optional
-    attributes: Dict[str, Any] = field(default_factory=dict)
     email: Optional[str] = None
     username: Optional[str] = None
     firstName: Optional[str] = None

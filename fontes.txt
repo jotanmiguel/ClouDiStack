@@ -1,1 +1,0 @@
-https://kiranchavala.in/blog/cloudstack-integration-with-keycloak/
