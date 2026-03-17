@@ -208,3 +208,6 @@ __marimo__/
 src/cloudstack.ini
 .vscode/settings.json
 src/ks2cs/state.json
+
+logs/
+logs/*
