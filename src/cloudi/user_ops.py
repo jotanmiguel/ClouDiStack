@@ -2,7 +2,7 @@ from __future__ import annotations
 from time import time
 from typing import Any, Dict, Optional
 from cs import CloudStack
-from cloudstack.cs_client import get_cs
+from services.cloudstack_service import get_cloudstack
 from models.cloudstack_models import CSAccount, CSUser, ListAccountsResponse
 from utils.identity import gen_password, gen_username
 
@@ -176,9 +176,6 @@ def create_student(cs: CloudStack, email: str, username:str, firstname: str, las
         accounttype="0",
     )
 
-    if debug:
-        print("createAccount raw:", resp)
-
     acct_dict = _unwrap_account_from_create(resp)
     acc_model = CSAccount.model_validate(acct_dict)
 
@@ -244,7 +241,7 @@ def ensure_student_account(cs: CloudStack, email: str, username: str, firstname:
 # ============================================================
 
 if __name__ == "__main__":
-    cs = get_cs()
+    cs = get_cloudstack()
     
     # get all accounts. Useful to crosscheck with keycloak users. also returns the admin account.
     print(get_all_accounts(cs))

@@ -1,13 +1,13 @@
-from clients.cloudstack.client import InstrumentedCloudStack, get_cs
+from clients.cloudstack.client import CloudStackClient
 from config.config import load_settings
-_cs_instance: InstrumentedCloudStack | None = None
+_cs_instance: CloudStackClient | None = None
 
 
-def get_cloudstack() -> InstrumentedCloudStack:
+def get_cloudstack() -> CloudStackClient:
     global _cs_instance
 
     if _cs_instance is None:
         config = load_settings()
-        _cs_instance = get_cs()
+        _cs_instance = CloudStackClient(config)
 
     return _cs_instance

@@ -1,28 +1,17 @@
+
 """Main CloudStack HTTP client."""
 from __future__ import annotations
 import logging
-from .base import CloudStackBaseClient
 from .accounts import CloudStackAccountsClient
 from .users import CloudStackUsersClient
 from .roles import CloudStackRolesClient
 from .domains import CloudStackDomainsClient
 from .sso import CloudStackSSOClient
-import os
-from pathlib import Path
-from time import perf_counter
-from cs import CloudStack
-from dotenv import load_dotenv
-
+ 
 log = logging.getLogger(__name__)
-
-env = load_dotenv()
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-ENV_PATH = PROJECT_ROOT / ".env"
-load_dotenv(dotenv_path=ENV_PATH, override=False)
-
-class InstrumentedCloudStack(
-    CloudStack,
+ 
+ 
+class CloudStackClient(
     CloudStackAccountsClient,
     CloudStackUsersClient,
     CloudStackRolesClient,
@@ -30,46 +19,14 @@ class InstrumentedCloudStack(
     CloudStackSSOClient
 ):
     """
-    Wrapper (composition) around cs.CloudStack.
-    Avoids interfering with CloudStack's dynamic __getattr__ handler system.
+    Main CloudStack HTTP client.
+    Combines accounts, users, roles, domains, and SSO operations.
     """
-
-    def __init__(self, inner: CloudStack):
-        self._inner = inner
-
-    def __getattr__(self, name: str):
-        original = getattr(self._inner, name)
-
-        if not callable(original):
-            return original
-
-        def wrapped(*args, **kwargs):
-            t0 = perf_counter()
-            try:
-                res = original(*args, **kwargs)
-                dt = perf_counter() - t0
-                print(f"[CS] {name} OK ({dt:.4f}s)")
-                return res
-            except Exception as ex:
-                dt = perf_counter() - t0
-                print(f"[CS] {name} FAIL ({dt:.4f}s) -> {ex}")
-                raise
-
-        return wrapped
-
-def get_cs() -> CloudStack:
-    endpoint = os.getenv("CS_ENDPOINT")
-    key = os.getenv("CS_KEY")
-    secret = os.getenv("CS_SECRET")
-
-    if not endpoint or not key or not secret:
-        raise ValueError("Missing CloudStack credentials in environment variables")
-
-    cs = CloudStack(
-        endpoint=endpoint,
-        key=key,
-        secret=secret,
-        timeout=30,
-    )
-
-    return InstrumentedCloudStack(cs)
+    
+    def __init__(self, config):
+        """Initialize CloudStackClient."""
+        super().__init__(config)
+        log.info(
+            "✅ CloudStackClient initialized "
+            "(accounts + users + roles + domains + sso)"
+        )

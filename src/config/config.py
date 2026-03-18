@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import os
 from dotenv import load_dotenv
+from httpx import get
 
 def _get_bool(name: str, default: bool) -> bool:
     raw = os.getenv(name)
@@ -28,6 +29,12 @@ class Settings:
     state_path: str
     kc_provisioned_attr: str
     kc_account_attr: str
+    
+    # CloudStack
+    cs_endpoint: str
+    cs_key: str
+    cs_secret: str
+    cs_idp_entity_id: str
 
 def load_settings() -> Settings:
     load_dotenv()
@@ -44,5 +51,10 @@ def load_settings() -> Settings:
         poll_interval_seconds=_get_int("POLL_INTERVAL_SECONDS", 5),
         state_path=os.getenv("STATE_PATH", "./state.json"),
         kc_provisioned_attr=os.getenv("KC_PROVISIONED_ATTR", "cloudstackProvisioned"),
-        kc_account_attr=os.getenv("KC_ACCOUNT_ATTR", "cloudstackAccount")
+        kc_account_attr=os.getenv("KC_ACCOUNT_ATTR", "cloudstackAccount"),
+        
+        cs_endpoint=os.getenv("CS_ENDPOINT"),
+        cs_key=os.getenv("CS_KEY"),
+        cs_secret=os.getenv("CS_SECRET"),
+        cs_idp_entity_id=os.getenv("CS_IDP_ENTITY_ID", "cloudi-idp"),        
     )

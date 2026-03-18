@@ -1,7 +1,6 @@
 """Main Keycloak HTTP client."""
 from __future__ import annotations
 import logging
-from .base import KeycloakBaseClient
 from .users import KeycloakUsersClient
 from .groups import KeycloakGroupsClient
 from .events import KeycloakEventsClient
