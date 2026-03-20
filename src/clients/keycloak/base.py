@@ -8,7 +8,7 @@ from .exceptions import KeycloakClientError
 
 log = logging.getLogger(__name__)
 
-class KeycloakBaseClient:
+class KeycloakBaseClient(KeycloakAdmin):
     """Base class for Keycloak HTTP client."""
     
     def __init__(self, config):
@@ -28,7 +28,11 @@ class KeycloakBaseClient:
                 verify=config.kc_verify_tls,
             )
             
-            self._admin = KeycloakAdmin(connection=self._conn)
+            self._admin = KeycloakAdmin(server_url=config.kc_server_url,
+                                         username=config.kc_username,
+                                         password=config.kc_password,
+                                         realm_name=config.kc_realm,
+                                         verify=config.kc_verify_tls)
             self._admin.change_current_realm(config.kc_realm_name)
             
             log.info("✅ Keycloak client ready")

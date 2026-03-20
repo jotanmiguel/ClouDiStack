@@ -66,6 +66,26 @@ class KeycloakUsersClient(KeycloakBaseClient):
     # WRITE OPERATIONS
     # ============================================================
     
+    def create_user(self, payload: Dict[str, Any]) -> Optional[str]:
+        """
+        Create a new user.
+        
+        Args:
+            payload: User data, e.g. {
+                "username": "joao",
+                "email": "joao@example.com"
+            }
+        """
+        try:
+            user_id = self._admin.create_user(payload)
+            log.info(f"Created user {user_id}")
+            self.set_user_enabled(user_id, True)  # Enable user by default
+            log.info(f"Enabled user {user_id} by default")
+            return user_id
+        except KeycloakError as e:
+            self._handle_error("create_user", e)
+            return None
+
     def update_user(self, user_id: str, payload: Dict[str, Any]) -> None:
         """
         Update user (email, firstName, lastName, attributes, etc).
@@ -85,6 +105,26 @@ class KeycloakUsersClient(KeycloakBaseClient):
             log.info(f"Updated user {user_id}")
         except KeycloakError as e:
             self._handle_error(f"update_user({user_id})", e)
+            
+    def delete_user(self, user_id: str) -> bool:
+        """Delete user by ID."""
+        try:
+            self._admin.delete_user(user_id)
+            log.info(f"Deleted user {user_id}")
+            return True
+        except KeycloakError as e:
+            self._handle_error(f"delete_user({user_id})", e)
+            return False
+            
+    def credentials_user(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get user credentials."""
+        try:
+            creds = self._admin.get_credentials(user_id)
+            log.debug(f"Got credentials for user {user_id}")
+            return creds
+        except KeycloakError as e:
+            self._handle_error(f"credentials_user({user_id})", e)
+            return []
     
     def set_user_attributes(self, user_id: str, attributes: Dict[str, List[str]]) -> Dict[str, List[str]]:
         """
@@ -137,3 +177,6 @@ class KeycloakUsersClient(KeycloakBaseClient):
             return True
         except KeycloakClientError:
             return False
+        
+    def set_user_password(self, user_id: str, password: str, temporary: bool = True) -> Dict:
+        return super().set_user_password(user_id, password, temporary)

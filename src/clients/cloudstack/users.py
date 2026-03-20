@@ -20,9 +20,9 @@ class CloudStackUsersClient(CloudStackBaseClient):
             self._handle_error(f"get_user({user_id})", e)
     
     def update_user(self, user_id: str, updates: Dict[str, Any]) -> None:
-        """Update user (email, firstname, lastname, etc)."""
+        """Update user fields (firstname, lastname, email)."""
         try:
-            log.debug(f"Updating user {user_id}")
+            log.debug(f"Updating user {user_id} with {list(updates.keys())}")
             self._cs.updateUser(id=user_id, **updates)
             log.info(f"Updated user {user_id}")
         except Exception as e:

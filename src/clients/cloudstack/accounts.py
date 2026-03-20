@@ -64,6 +64,19 @@ class CloudStackAccountsClient(CloudStackBaseClient):
         except Exception as e:
             self._handle_error(f"get_account_by_name({account_name})", e)
     
+    def get_user_id(self, username: str, domain_id: str) -> str | None:
+        """Get the user_id for a given username in a domain."""
+        try:
+            acc = self.get_account_by_name(username, domain_id)
+            if not acc:
+                return None
+            users = acc.get("user", [])
+            user = next((u for u in users if u.get("username") == username), None)
+            return user["id"] if user else None
+        except Exception as e:
+            self._handle_error(f"get_user_id({username})", e)
+            return None
+        
     # ============================================================
     # WRITE OPERATIONS
     # ============================================================
@@ -111,7 +124,7 @@ class CloudStackAccountsClient(CloudStackBaseClient):
             "email": email,
             "account_id": acc_model.id,
             "user_id": user_id,
-            "time_duration_s": round(time() - t0, 2),
+            "time_duration_s": 0.0,
             "created": True
         }
     
@@ -120,10 +133,20 @@ class CloudStackAccountsClient(CloudStackBaseClient):
         account_id: str,
         updates: Dict[str, Any]
     ) -> None:
-        """Update account."""
+        """Update account role or other account-level fields."""
         try:
+            # CloudStack requires account name + domainid even when updating by id
+            acc = self.get_account(account_id)
+            if not acc:
+                raise ValueError(f"Account {account_id} not found")
+            
             log.debug(f"Updating account {account_id}")
-            self._cs.updateAccount(id=account_id, **updates)
+            self._cs.updateAccount(
+                id=account_id,
+                account=acc["name"],
+                domainid=acc["domainid"],
+                **updates
+            )
             log.info(f"Updated account {account_id}")
         except Exception as e:
             self._handle_error(f"update_account({account_id})", e)
@@ -136,6 +159,15 @@ class CloudStackAccountsClient(CloudStackBaseClient):
             log.info(f"Disabled account {account_id}")
         except Exception as e:
             self._handle_error(f"disable_account({account_id})", e)
+            
+    def enable_account(self, account_id: str) -> None:
+        """Enable previously disabled account."""
+        try:
+            log.debug(f"Enabling account {account_id}")
+            self._cs.enableAccount(id=account_id)
+            log.info(f"Enabled account {account_id}")
+        except Exception as e:
+            self._handle_error(f"enable_account({account_id})", e)
     
     def delete_account(self, account_id: str) -> None:
         """Delete account (DESTRUCTIVE)."""
