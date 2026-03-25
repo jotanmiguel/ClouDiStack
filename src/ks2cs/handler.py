@@ -18,33 +18,30 @@ def _is_provisioned(kc: KeycloakClient, user_id: str, flag_attr: str) -> bool:
     v = attrs.get(flag_attr)
     return bool(v and isinstance(v, list) and ( str(v[0]).lower() == "true" or str(v[0]).lower() == "1" or str(v[0]).lower() == "yes" ) )
 
-def _mark_provisioned(kc: KeycloakClient,user_id: str,*,account_id: str,roleid: str,tier: str,cs_user_id: str,internal:bool) -> None:
+def _mark_provisioned(kc, user_id, *, account_id, roleid, tier, cs_user_id, **kwargs) -> None:
     kc.set_user_attributes(user_id, {
-        "cloudstackProvisioned": ["true"],
-        "cloudstackAccountId": [account_id],
-        "cloudstackUserId": [cs_user_id],  # 🔥 correto
-        "cloudstackRoleId": [roleid],
-        "cloudstackTier": [tier],
-        "cloudstackStatus": ["active"],
-        "cloudstackSync": [str(time())],
-        "keycloakInternalUpdate": [str(internal)],  # 🔥 garantir flag limpa
+        "cloudstackProvisioned":    ["true"],
+        "cloudstackAccountId":      [account_id],
+        "cloudstackUserId":         [cs_user_id],
+        "cloudstackRoleId":         [roleid],
+        "cloudstackTier":           [tier],
+        "cloudstackStatus":         ["active"],
+        "cloudstackSync":           [str(time())],
+        "keycloakInternalUpdate":   ["true"],  # temporária — resetada no próximo evento
     })
     
-def _update_provisioned(kc: KeycloakClient, user_id: str, **kwargs) -> None:
+def _update_provisioned(kc, user_id, **kwargs) -> None:
     existing = kc.get_user_attributes(user_id) or {}
 
-    new_attrs = {}
-    for k, v in kwargs.items():
-        print(f"cloudstack{k[0].upper()}{k[1:]}")
-        new_attrs[f"cloudstack{k[0].upper()}{k[1:]}"] = [str(v)]
+    new_attrs = {
+        f"cloudstack{k[0].upper()}{k[1:]}": [str(v)]
+        for k, v in kwargs.items()
+    }
 
-    merged = {**existing, **new_attrs}
+    merged = {**existing, **new_attrs, "keycloakInternalUpdate": ["true"]}
 
     if existing == merged:
         return
-
-    # 🔥 marcar flag APENAS quando necessário
-    merged["keycloakInternalUpdate"] = ["true"]
 
     kc.set_user_attributes(user_id, merged)
 
@@ -185,7 +182,14 @@ def handle_user_update_event(*, kc: KeycloakClient, cs: CloudStackClient, raw: d
 
     attrs = kc.get_user_attributes(kc_user_id) or {}
 
-    if attrs.get("keycloakInternalUpdate", ["false"])[0] == "true":
+    # 🔥 lê a flag E reseta imediatamente
+    is_internal = attrs.get("keycloakInternalUpdate", ["false"])[0] == "true"
+    if is_internal:
+        # reseta a flag para o próximo update ser processado
+        kc.set_user_attributes(kc_user_id, {
+            **attrs,
+            "keycloakInternalUpdate": ["false"]
+        })
         return {"skipped": True, "reason": "internal_update"}
 
     current_email = attrs.get("email", [None])[0]
@@ -218,9 +222,6 @@ def handle_user_update_event(*, kc: KeycloakClient, cs: CloudStackClient, raw: d
 
     # 🔄 atualizar CloudStack
     cs.update_user(cs_user_id, updates)
-
-    # 🏷️ atualizar sync (sem causar loop)
-    _update_provisioned(kc, kc_user_id, sync=time())
 
     log.info(
         "SYNC update kc_user_id=%s cs_user_id=%s fields=%s",
