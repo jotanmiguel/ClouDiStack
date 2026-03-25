@@ -30,6 +30,7 @@ class KeycloakUser:
     emailVerified: bool
     createdTimestamp: int
     enabled: bool
+    emailVerified: bool
     
     # optional
     attributes: Dict[str, Any] = field(default_factory=dict)

@@ -19,19 +19,34 @@ class KeycloakUsersClient(KeycloakBaseClient):
     # ============================================================
     
     def get_user(self, user_id: str) -> KeycloakUser | None:
-        """
-        Get user by ID.
-        
-        Returns:
-            KeycloakUser instance or None if not found
-        """
         try:
             user_data = self._admin.get_user(user_id)
             log.debug(f"Got user {user_id}")
-            return KeycloakUser(**user_data)
+
+            return KeycloakUser(**user_data)  # ❌ REMOVE chamada extra
+
         except KeycloakError as e:
             log.error(f"Failed to get user {user_id}: {e}")
             return None
+        
+    def user_verify_email(self, user_id: str) -> bool:
+        """Check if user's email is verified."""
+        try:
+            user = self.get_user(user_id)
+            if user and hasattr(user, "emailVerified"):
+                return user.emailVerified
+            return False
+        except KeycloakClientError:
+            return False
+        
+    def set_email_verified(self, user_id: str, verified: bool) -> bool:
+        """Set user's email verified status."""
+        try:
+            self.update_user(user_id, {"emailVerified": verified})
+            log.info(f"Set emailVerified={verified} for user {user_id}")
+            return True
+        except KeycloakClientError:
+            return False
     
     def get_users(self, query: Dict[str, Any] | None = None) -> List[KeycloakUser]:
         """
@@ -47,7 +62,7 @@ class KeycloakUsersClient(KeycloakBaseClient):
             log.debug(f"Getting users with query: {query}")
             users_data = self._admin.get_users(query or {})
             log.debug(f"Got {len(users_data)} users")
-            return [KeycloakUser(**user_data) for user_data in users_data]
+            return [KeycloakUser(**user_data, attributes=self.get_user_attributes(user_data["id"])) for user_data in users_data]
         except KeycloakError as e:
             log.error(f"Failed to get users: {e}")
             return []
@@ -62,6 +77,17 @@ class KeycloakUsersClient(KeycloakBaseClient):
         except Exception:
             return False
     
+    def to_dict(self, user: KeycloakUser) -> Dict[str, Any]:
+        """Convert KeycloakUser to dict for API calls."""
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "firstName": user.firstName,
+            "lastName": user.lastName,
+            "enabled": user.enabled,
+            "attributes": user.attributes,
+        }
     # ============================================================
     # WRITE OPERATIONS
     # ============================================================
@@ -133,12 +159,11 @@ class KeycloakUsersClient(KeycloakBaseClient):
         Keycloak stores attributes as lists!
         """
         try:
-            current_attributes = self.get_user_attributes(user_id) or {}
-            # merge attributes
-            merged_attributes = {**current_attributes, **attributes}
-            payload = {"attributes": merged_attributes}
+            user = self.get_user(user_id)
 
-            self._admin.update_user(user_id, payload)
+            payload = {**self.to_dict(user), "attributes": attributes}
+
+            self.update_user(user_id, payload)
 
             log.info(f"Set attributes for user {user_id}: {list(attributes.keys())}")
             return self.get_user_attributes(user_id)
@@ -147,27 +172,12 @@ class KeycloakUsersClient(KeycloakBaseClient):
             self._handle_error(f"set_user_attributes({user_id})", e)
     
     def get_user_attributes(self, user_id: str) -> Dict[str, List[str]]:
-        """
-        Get user attributes.
-        
-        Returns:
-            {
-                "cloudstack_tier": ["standard"],
-                "cloudstack_account_id": ["acc-123"],
-                ...
-            }
-        """
         try:
-            user = self.get_user(user_id)
-            if not user:
-                log.warning(f"User {user_id} not found")
-                return {}
-            
-            attrs = user.attributes or {}
-            log.debug(f"Got attributes for user {user_id}")
-            return attrs
-        except KeycloakClientError:
-            raise
+            user_data = self._admin.get_user(user_id)
+            return user_data.get("attributes", {}) or {}
+        except KeycloakError as e:
+            self._handle_error(f"get_user_attributes({user_id})", e)
+            return {}
     
     def set_user_enabled(self, user_id: str, enabled: bool) -> bool:
         """Enable or disable user."""

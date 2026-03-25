@@ -3,6 +3,7 @@
 from __future__ import annotations
 import logging
 import time
+from tkinter import N
 from typing import Any, Dict, List
 from clients.cloudstack.base import CloudStackBaseClient
 from domain.models.cloudstack_models import CSAccount, ListAccountsResponse
@@ -50,19 +51,26 @@ class CloudStackAccountsClient(CloudStackBaseClient):
         except Exception as e:
             self._handle_error(f"get_account({account_id})", e)
     
-    def get_account_by_name(
-        self,
-        account_name: str,
-        domain_id: str
-    ) -> Dict[str, Any] | None:
+    def get_account_by_name(self,account_name: str,domain_id: str = "") -> Dict[str, Any] | None:
         """Get account by name in a domain."""
         try:
             accounts = self.list_accounts(
-                filters={"name": account_name, "domainid": domain_id}
+                filters={"name": account_name}
             )
             return accounts[0] if accounts else None
         except Exception as e:
             self._handle_error(f"get_account_by_name({account_name})", e)
+  
+    def get_account_by_email(self, email: str) -> Dict[str, Any] | None:
+        """Get account by email."""
+        try:
+            accounts = self.list_accounts(
+                filters={"email": email}
+            )
+            return accounts[0] if accounts else None
+        except Exception as e:
+            self._handle_error(f"get_account_by_email({email})", e)
+            return None
     
     def get_user_id(self, username: str, domain_id: str) -> str | None:
         """Get the user_id for a given username in a domain."""
@@ -83,39 +91,37 @@ class CloudStackAccountsClient(CloudStackBaseClient):
     
     def create_account(
         self,
-        account_name: str,
         username: str,
         email: str,
         firstname: str,
         lastname: str,
         password: str,
-        domain_id: str = "1488a55a-800b-472f-94d7-7273a00a1208",
         account_type: str = "0",
-        role_id: str = "4eff4f67-dff5-4179-bba8-802d9c7163cc",
+        role_id: str = "7fd5d665-76f2-46a7-9a03-98e0a42985f8",
+        userid: str = ""
     ) -> Dict[str, Any]:
         """Create new account."""
         try:
-            log.debug(f"Creating account {account_name} in domain {domain_id}")
+            log.debug(f"Creating account {username}")
             password = gen_password() if not password else password
             resp = self._cs.createAccount(
-                account=account_name,
                 username=username,
                 email=email,
                 firstname=firstname,
                 lastname=lastname,
                 password=password,
-                domainid=domain_id,
                 accounttype=account_type,
-                roleid=role_id
+                roleid=role_id,
+                userid = userid
             ) or {}
         except Exception as e:
-            self._handle_error(f"create_account({account_name})", e)
+            self._handle_error(f"create_account({username})", e)
             return {}
             
         acct_dict = self._unwrap_account_from_create(resp)
         acc_model = CSAccount.model_validate(acct_dict)
         if acc_model.user:
-            log.info(f"Created account {account_name}")
+            log.info(f"Created account {username} (id={acc_model.id}) with user_id={acc_model.user[0].id}")
         
         user_id = acc_model.user[0].id
         

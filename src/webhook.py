@@ -27,7 +27,6 @@ app = FastAPI(title="ClouDiStack Webhook Receiver")
 _kc: KeycloakClient | None = None
 _cs: CloudStackClient | None = None
 
-
 @app.on_event("startup")
 async def startup():
     global _kc, _cs
@@ -70,28 +69,34 @@ def _route_event(event_type: str, resource_type: str, operation_type: str, raw: 
 @app.post("/webhook/keycloak")
 async def keycloak_webhook(request: Request):
     body = await request.body()
+    
+    if _kc is None or _cs is None:
+        raise HTTPException(status_code=500, detail="Clients not initialized")
 
     try:
         event = json.loads(body)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
-    event_type     = event.get("type", "UNKNOWN")
-    resource_type  = event.get("resourceType", "")
-    operation_type = event.get("operationType", "")
-    realm          = event.get("realmId", "")
+    try:
+        result = _route_event(
+            event.get("type", "UNKNOWN"),
+            event.get("resourceType", ""),
+            event.get("operationType", ""),
+            event
+        )
 
-    log.info(
-        "type=%s resourceType=%s operationType=%s realm=%s",
-        event_type, resource_type, operation_type, realm,
-    )
+        if result is None:
+            return JSONResponse(status_code=200, content={"status": "ignored"})
 
-    result = _route_event(event_type, resource_type, operation_type, event)
+        return _safe_response(result)
 
-    if result is None:
-        return JSONResponse(status_code=200, content={"status": "ignored", "type": event_type})
-
-    return JSONResponse(status_code=200, content={"status": "ok", "result": result})
+    except Exception as e:
+        log.exception("Webhook failed")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "error": str(e)}
+        )
 
 @app.get("/health")
 async def health():
@@ -100,3 +105,35 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("webhook:app", host="0.0.0.0", port=5000, reload=True)
+    
+# ─── Utils ─────────────────────────────────────────────────────
+
+def _serialize(obj):
+    """Converte objetos para algo JSON serializável."""
+    if obj is None:
+        return None
+
+    # dataclasses
+    if hasattr(obj, "__dataclass_fields__"):
+        from dataclasses import asdict
+        return asdict(obj)
+
+    # objetos com método to_dict()
+    if hasattr(obj, "to_dict"):
+        return obj.to_dict()
+
+    # objetos com __dict__
+    if hasattr(obj, "__dict__"):
+        return vars(obj)
+
+    # fallback
+    return str(obj)
+    
+def _safe_response(result):
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "ok",
+            "result": _serialize(result)
+        }
+    )

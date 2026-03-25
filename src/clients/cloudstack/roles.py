@@ -1,8 +1,10 @@
 """CloudStack role operations."""
 from __future__ import annotations
 import logging
+from traceback import print_tb
 from typing import Any, Dict, List, Optional
 from clients.cloudstack.base import CloudStackBaseClient
+from clients.cloudstack.exceptions import CloudStackClientError
  
 log = logging.getLogger(__name__)
  
@@ -70,3 +72,63 @@ class CloudStackRolesClient(CloudStackBaseClient):
             raise CloudStackClientError(f"Failed to create role {name}")
         except Exception as e:
             self._handle_error(f"create_role({name})", e)
+            
+    def delete_role(self, role_id: str) -> bool:
+        """Delete a role by ID."""
+        try:
+            log.debug(f"Deleting role {role_id}")
+            self._cs.deleteRole(id=role_id)
+            log.info(f"Deleted role {role_id}")
+            return True
+        except Exception as e:
+            self._handle_error(f"delete_role({role_id})", e)
+            return False
+        
+    def assign_permission_to_role(self, permission: bool, role_id: str, rule: list[str]) -> bool:
+        """Assign a permission to a role."""
+        try:
+            log.debug(f"Assigning permissions to role {role_id}")
+            self._cs.createRolePermission(permission=permission, roleid=role_id, rule=rule)
+            log.info(f"Assigned permissions to role {role_id}")
+            return True
+        except Exception as e:
+            self._handle_error(f"assign_permission_to_role({role_id})", e)
+            return False
+        
+    def revoke_permission_from_role(self, role_id: str, permission_id: str) -> bool:
+        """Revoke a permission from a role."""
+        try:
+            log.debug(f"Revoking permission {permission_id} from role {role_id}")
+            self._cs.deleteRolePermission(roleid=role_id, permissionid=permission_id)
+            log.info(f"Revoked permission {permission_id} from role {role_id}")
+            return True
+        except Exception as e:
+            self._handle_error(f"revoke_permission_from_role({role_id}, {permission_id})", e)
+            return False
+        
+    def duplicate_role(self, source_role_id: str, new_role_name: str, description: str = "") -> str | None:
+        """Duplicate an existing role with a new name. Returns new role ID."""
+        try:
+            log.debug(f"Duplicating role {source_role_id} to {new_role_name}")
+            resp = self.create_role(name=new_role_name, description=description)
+            new_role_id = resp
+            if new_role_id:
+                log.info(f"Duplicated role {source_role_id} to {new_role_name} (id={new_role_id})")
+                perms = [p for p in self.list_role_permissions(source_role_id)]
+                for p in perms:
+                    self.assign_permission_to_role(
+                        permission=p.get("permission"),
+                        role_id=new_role_id,
+                        rule=p.get("rule", [])
+                    )
+                return {
+                        "id": new_role_id,
+                        "name": new_role_name,
+                        "description": description,
+                        "permissions": len(perms),
+                        "duration": 0, #TODO need to calculate total duration later
+                    }
+            raise CloudStackClientError(f"Failed to duplicate role {source_role_id}")
+        except Exception as e:
+            self._handle_error(f"duplicate_role({source_role_id}, {new_role_name})", e)
+            return None
