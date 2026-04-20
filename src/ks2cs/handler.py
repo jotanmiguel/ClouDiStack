@@ -10,7 +10,7 @@ from utils.identity import gen_username
 
 log = logging.getLogger("ks2cs.handler")
 
-STUDENT_ROLE_ID    = "7fd5d665-76f2-46a7-9a03-98e0a42985f8"
+STUDENT_ROLE_ID    = "c36f7dfb-31bd-11f1-8f49-cec6e5fcc99e"
 STAFF_ROLE_ID      = "e7580ffb-8931-4dea-9659-481c7d1d7c71"  # TODO: substituir
 
 def _is_provisioned(kc: KeycloakClient, user_id: str, flag_attr: str) -> bool:
@@ -76,6 +76,7 @@ def handle_user_create_event(kc: KeycloakClient,cs: CloudStackClient,event: Keyc
         raise
 
     if not acc:
+        log.info("CREATE account username=%s email=%s role=%s", username, event.email, role)
         result = cs.create_account(
             username=username,
             email=event.email,
@@ -88,14 +89,22 @@ def handle_user_create_event(kc: KeycloakClient,cs: CloudStackClient,event: Keyc
         account_id  = result["account_id"]
         cs_user_id  = result["user_id"]
         created     = True
+
     else:
         account_id  = acc["id"]
         users       = acc.get("user", [])
         cs_user_id  = users[0]["id"] if users else None
         created     = False
+        log.info("EXISTS account username=%s account_id=%s", username, account_id)
+        
+    duration = round(time() - t0, 2)
+        
+    if created:
+        log.info("CREATED account_id=%s cs_user_id=%s duration=%ss", account_id, cs_user_id, duration)
 
     # 3) garantir SSO
     if cs_user_id:
+        log.info("SSO enabled cs_user_id=%s", cs_user_id)
         cs.authorize_saml_sso(cs_user_id)
 
     duration = round(time() - t0, 2)
@@ -111,10 +120,8 @@ def handle_user_create_event(kc: KeycloakClient,cs: CloudStackClient,event: Keyc
         internal=True,        
     )
 
-    log.info(
-        "PROVISIONED role=%s kc_user_id=%s username=%s email=%s account_id=%s user_id=%s",
-        role, event.user_id, username, event.email, account_id, cs_user_id,
-    )
+    log.info("MARKED_PROVISIONED kc_user_id=%s account_id=%s role=%s", event.user_id, account_id, role)
+
 
     return ProvisionResult(
         role=role,
@@ -127,6 +134,64 @@ def handle_user_create_event(kc: KeycloakClient,cs: CloudStackClient,event: Keyc
         time_duration_s=duration,
     )
 
+def handle_user_update_event(*, kc: KeycloakClient, cs: CloudStackClient, raw: dict) -> dict:
+    rep = _parse_representation(rep=raw.get("representation"))
+    kc_user_id = rep.get("id")
+
+    if not kc_user_id:
+        return {"skipped": True, "reason": "no_user_id"}
+
+    attrs = kc.get_user_attributes(kc_user_id) or {}
+
+    # 🔥 lê a flag E reseta imediatamente
+    is_internal = attrs.get("keycloakInternalUpdate", ["false"])[0] == "true"
+    if is_internal:
+        log.debug("SKIP kc_user_id=%s reason=internal_update", kc_user_id)
+        kc.set_user_attributes(kc_user_id, {
+            **attrs,
+            "keycloakInternalUpdate": ["false"]
+        })
+        return {"skipped": True, "reason": "internal_update"}
+
+    current_email = attrs.get("email", [None])[0]
+    current_firstname = attrs.get("firstname", [None])[0]
+    current_lastname = attrs.get("lastname", [None])[0]
+
+    email     = rep.get("email") or current_email
+    firstname = rep.get("firstName") or current_firstname
+    lastname  = rep.get("lastName") or current_lastname
+
+    updates = {}
+
+    if email != current_email:
+        updates["email"] = email
+
+    if firstname != current_firstname:
+        updates["firstname"] = firstname
+
+    if lastname != current_lastname:
+        updates["lastname"] = lastname
+
+    if not updates:
+        log.debug("SKIP kc_user_id=%s reason=no_changes", kc_user_id)
+        return {"skipped": True, "reason": "no_actual_changes"}
+
+    # 🔑 obter user id do CloudStack (OBRIGATÓRIO)
+    cs_user_id = attrs.get("cloudstackUserId", [None])[0]
+
+    if not cs_user_id:
+        return {"skipped": True, "reason": "no_cs_user_id"}
+
+    # 🔄 atualizar CloudStack
+    cs.update_user(cs_user_id, updates)
+
+    log.info("UPDATE cs_user_id=%s fields=%s", cs_user_id, list(updates.keys()))
+
+    return {
+        "updated": True,
+        "changed_fields": list(updates.keys())
+    }
+    
 def handle_user_delete_event(*, kc: KeycloakClient, cs: CloudStackClient, raw: dict) -> dict:
     details = raw.get("details") or {}
     cs_user_id = details.get("userId")
@@ -172,65 +237,3 @@ def handle_user_delete_event(*, kc: KeycloakClient, cs: CloudStackClient, raw: d
             "account_id": account_id,
             "fallback": "delete_failed",
         }
-
-def handle_user_update_event(*, kc: KeycloakClient, cs: CloudStackClient, raw: dict) -> dict:
-    rep = _parse_representation(rep=raw.get("representation"))
-    kc_user_id = rep.get("id")
-
-    if not kc_user_id:
-        return {"skipped": True, "reason": "no_user_id"}
-
-    attrs = kc.get_user_attributes(kc_user_id) or {}
-
-    # 🔥 lê a flag E reseta imediatamente
-    is_internal = attrs.get("keycloakInternalUpdate", ["false"])[0] == "true"
-    if is_internal:
-        # reseta a flag para o próximo update ser processado
-        kc.set_user_attributes(kc_user_id, {
-            **attrs,
-            "keycloakInternalUpdate": ["false"]
-        })
-        return {"skipped": True, "reason": "internal_update"}
-
-    current_email = attrs.get("email", [None])[0]
-    current_firstname = attrs.get("firstname", [None])[0]
-    current_lastname = attrs.get("lastname", [None])[0]
-
-    email     = rep.get("email") or current_email
-    firstname = rep.get("firstName") or current_firstname
-    lastname  = rep.get("lastName") or current_lastname
-
-    updates = {}
-
-    if email != current_email:
-        updates["email"] = email
-
-    if firstname != current_firstname:
-        updates["firstname"] = firstname
-
-    if lastname != current_lastname:
-        updates["lastname"] = lastname
-
-    if not updates:
-        return {"skipped": True, "reason": "no_actual_changes"}
-
-    # 🔑 obter user id do CloudStack (OBRIGATÓRIO)
-    cs_user_id = attrs.get("cloudstackUserId", [None])[0]
-
-    if not cs_user_id:
-        return {"skipped": True, "reason": "no_cs_user_id"}
-
-    # 🔄 atualizar CloudStack
-    cs.update_user(cs_user_id, updates)
-
-    log.info(
-        "SYNC update kc_user_id=%s cs_user_id=%s fields=%s",
-        kc_user_id,
-        cs_user_id,
-        list(updates.keys())
-    )
-
-    return {
-        "updated": True,
-        "changed_fields": list(updates.keys())
-    }

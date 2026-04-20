@@ -97,7 +97,7 @@ class CloudStackAccountsClient(CloudStackBaseClient):
         lastname: str,
         password: str,
         account_type: str = "0",
-        role_id: str = "7fd5d665-76f2-46a7-9a03-98e0a42985f8",
+        role_id: str = "c36f7dfb-31bd-11f1-8f49-cec6e5fcc99e",
         userid: str = ""
     ) -> Dict[str, Any]:
         """Create new account."""

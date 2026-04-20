@@ -8,8 +8,8 @@ from cloudstack.cs_client import get_cs
 from models.cloudstack_models import CSAccount, CSUser, ListAccountsResponse
 from utils.identity import gen_password, gen_username
 
-STUDENT_ROLE_ID    = "4eff4f67-dff5-4179-bba8-802d9c7163cc"
-STAFF_ROLE_ID      = "4eff4f67-dff5-4179-bba8-802d9c7163cc"  # TODO: substituir pelo ID da role certa
+STUDENT_ROLE_ID    = "c36f7dfb-31bd-11f1-8f49-cec6e5fcc99e"
+STAFF_ROLE_ID      = "c36f7dfb-31bd-11f1-8f49-cec6e5fcc99e"  # TODO: substituir pelo ID da role certa
 STUDENTS_DOMAIN_ID = "1488a55a-800b-472f-94d7-7273a00a1208"
 STAFF_DOMAIN_ID    = "d2fc3766-68f6-4179-a997-b8bc37f9e828"  # TODO: substituir se for domínio diferente
 IDP_ENTITY_ID      = "https://10.10.5.52:8443/realms/Cloud-DI"

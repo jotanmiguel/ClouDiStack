@@ -1,5 +1,6 @@
 """Keycloak user operations."""
 from __future__ import annotations
+import email
 import logging
 from typing import Any, Dict, List, Optional
 from httpx import get
@@ -182,7 +183,7 @@ class KeycloakUsersClient(KeycloakBaseClient):
     def set_user_enabled(self, user_id: str, enabled: bool) -> bool:
         """Enable or disable user."""
         try:
-            self.update_user(user_id, {"enabled": enabled})
+            self.update_user(user_id, {"enabled": enabled, "emailVerified": enabled})
             log.info(f"User {user_id} {'enabled' if enabled else 'disabled'}")
             return True
         except KeycloakClientError:
