@@ -7,6 +7,7 @@ from .roles import CloudStackRolesClient
 from .domains import CloudStackDomainsClient
 from .sso import CloudStackSSOClient
 from .exceptions import CloudStackClientError
+from .resources import CloudStackResourcesClient
  
 __all__ = [
     "CloudStackClient",
@@ -17,4 +18,5 @@ __all__ = [
     "CloudStackDomainsClient",
     "CloudStackSSOClient",
     "CloudStackClientError",
+    "CloudStackResourcesClient",
 ]

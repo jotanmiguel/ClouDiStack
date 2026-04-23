@@ -8,14 +8,16 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from services.cloudstack_service import get_cloudstack
 from services.keycloak_service import get_keycloak
-from config.config import load_settings
 from config.logging import setup_logging
-from ks2cs.handler import handle_user_create_event, handle_user_delete_event, handle_user_update_event
-from ks2cs.mapping import decide_role_from_email
+from ks2cs.handler import (
+    handle_user_create_event,
+    handle_user_delete_event,
+    handle_user_update_event,
+    handle_group_membership_create_event,
+)
 from models.keycloak_models import to_user_create_event
 from clients.cloudstack.client import CloudStackClient
 from clients.keycloak.client import KeycloakClient
-from utils.identity import gen_username
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -36,22 +38,39 @@ async def startup():
 
 # ─── Handlers ──────────────────────────────────────────────────
 
+def _require_clients() -> tuple[KeycloakClient, CloudStackClient]:
+    if _kc is None or _cs is None:
+        raise HTTPException(status_code=500, detail="Clients not initialized")
+    return _kc, _cs
+
 def _handle_create(raw):
+    kc, cs = _require_clients()
     event = to_user_create_event(raw)
     if not event:
         return {"skipped": True, "reason": "not_parseable"}
-    return handle_user_create_event(kc=_kc, cs=_cs, event=event)
+    return handle_user_create_event(kc=kc, cs=cs, event=event)
 
 def _handle_delete(raw):
-    return handle_user_delete_event(kc=_kc, cs=_cs, raw=raw)
+    kc, cs = _require_clients()
+    return handle_user_delete_event(kc=kc, cs=cs, raw=raw)
 
 def _handle_update(raw):
-    return handle_user_update_event(kc=_kc, cs=_cs, raw=raw)
+    kc, cs = _require_clients()
+    return handle_user_update_event(kc=kc, cs=cs, raw=raw)
+
+def _handle_group_membership_create(raw):
+    kc, cs = _require_clients()
+    return handle_group_membership_create_event(kc=kc, cs=cs, raw=raw)
 
 # ─── Router ────────────────────────────────────────────────────
 
-def _route_event(event_type: str, resource_type: str, operation_type: str, raw: dict):
+def _route_event(event_type: str, resource_type: str, operation_type: str, resource_path: str, raw: dict):
     is_user = resource_type == "USER"
+    is_group_membership = (
+        event_type == "GROUP_MEMBERSHIP"
+        or resource_type == "GROUP_MEMBERSHIP"
+        or "/groups/" in (resource_path or "")
+    )
 
     if event_type == "REGISTER":
         return _handle_create(raw)
@@ -61,6 +80,8 @@ def _route_event(event_type: str, resource_type: str, operation_type: str, raw: 
         return _handle_delete(raw)
     if is_user and operation_type == "UPDATE":
         return _handle_update(raw)
+    if is_group_membership and operation_type == "CREATE":
+        return _handle_group_membership_create(raw)
 
     return None
 
@@ -70,19 +91,19 @@ def _route_event(event_type: str, resource_type: str, operation_type: str, raw: 
 async def keycloak_webhook(request: Request):
     body = await request.body()
     
-    if _kc is None or _cs is None:
-        raise HTTPException(status_code=500, detail="Clients not initialized")
+    _require_clients()
 
     try:
         event = json.loads(body)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
 
     try:
         result = _route_event(
             event.get("type", "UNKNOWN"),
             event.get("resourceType", ""),
             event.get("operationType", ""),
+            event.get("resourcePath", ""),
             event
         )
 

@@ -2,6 +2,8 @@
 """Main CloudStack HTTP client."""
 from __future__ import annotations
 import logging
+
+from clients.cloudstack.resources import CloudStackResourcesClient
 from .accounts import CloudStackAccountsClient
 from .users import CloudStackUsersClient
 from .roles import CloudStackRolesClient
@@ -16,7 +18,8 @@ class CloudStackClient(
     CloudStackUsersClient,
     CloudStackRolesClient,
     CloudStackDomainsClient,
-    CloudStackSSOClient
+    CloudStackSSOClient,
+    CloudStackResourcesClient,
 ):
     """
     Main CloudStack HTTP client.

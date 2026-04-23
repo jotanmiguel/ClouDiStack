@@ -6,6 +6,7 @@ from clients.cloudstack.client import CloudStackClient
 from models.keycloak_models import KeycloakUserCreateEvent, _parse_representation
 from ks2cs.mapping import decide_role_from_email
 from ks2cs.provision_actions import ProvisionResult
+from policy.service import PolicyService
 from utils.identity import gen_username
 
 log = logging.getLogger("ks2cs.handler")
@@ -237,3 +238,56 @@ def handle_user_delete_event(*, kc: KeycloakClient, cs: CloudStackClient, raw: d
             "account_id": account_id,
             "fallback": "delete_failed",
         }
+        
+def handle_group_membership_create_event(*, kc: KeycloakClient, cs: CloudStackClient, raw: dict) -> dict:
+    """Processa GROUP_MEMBERSHIP CREATE e aplica quotas do grupo no CloudStack."""
+
+    def _extract_ids(payload: dict) -> tuple[str | None, str | None]:
+        resource_path = (payload.get("resourcePath") or "").strip("/")
+        parts = resource_path.split("/") if resource_path else []
+
+        kc_user_id = None
+        group_id = None
+
+        # Formato esperado em admin event:
+        # users/<user_id>/groups/<group_id>
+        if len(parts) >= 4 and parts[0] == "users" and parts[2] == "groups":
+            kc_user_id = parts[1]
+            group_id = parts[3]
+
+        # Fallbacks para payloads customizados
+        if not kc_user_id:
+            kc_user_id = payload.get("userId") or payload.get("user_id")
+        if not group_id:
+            group_id = payload.get("groupId") or payload.get("group_id")
+
+        return kc_user_id, group_id
+
+    try:
+        kc_user_id, group_id = _extract_ids(raw)
+
+        if not kc_user_id:
+            log.warning("SKIP group_membership_create reason=no_user_id raw_keys=%s", list(raw.keys()))
+            return {"skipped": True, "reason": "no_user_id"}
+
+        service = PolicyService(kc=kc, cs=cs)
+        result = service.enforce_for_user(kc_user_id)
+
+        log.info(
+            "GROUP_MEMBERSHIP CREATE handled kc_user_id=%s group_id=%s enforced=%s",
+            kc_user_id,
+            group_id,
+            bool(result and result.get("enforced")),
+        )
+
+        return {
+            "handled": True,
+            "event": "GROUP_MEMBERSHIP_CREATE",
+            "kc_user_id": kc_user_id,
+            "group_id": group_id,
+            "result": result,
+        }
+
+    except Exception as e:
+        log.error("Erro ao processar GROUP_MEMBERSHIP CREATE: %s", str(e), exc_info=True)
+        return {"handled": False, "error": str(e)}

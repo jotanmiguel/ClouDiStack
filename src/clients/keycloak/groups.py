@@ -34,6 +34,16 @@ class KeycloakGroupsClient(KeycloakBaseClient):
         except KeycloakError as e:
             self._handle_error("list_groups", e)
             return []
+        
+    def get_group(self, group_id: str) -> Dict[str, Any] | None:
+        """Get full group details including attributes."""
+        try:
+            group = self._admin.get_group(group_id)
+            log.debug(f"Got group {group_id}")
+            return group
+        except KeycloakError as e:
+            self._handle_error(f"get_group({group_id})", e)
+            return None
     
     def get_group_by_name(self, group_name: str) -> Dict[str, Any] | None:
         """Get group by name."""

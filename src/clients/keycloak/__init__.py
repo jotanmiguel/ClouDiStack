@@ -5,6 +5,7 @@ from .users import KeycloakUsersClient
 from .groups import KeycloakGroupsClient
 from .events import KeycloakEventsClient
 from .exceptions import KeycloakClientError
+from keycloak import KeycloakError
 
 __all__ = [
     "KeycloakClient",
@@ -13,4 +14,5 @@ __all__ = [
     "KeycloakGroupsClient",
     "KeycloakEventsClient",
     "KeycloakClientError",
+    "KeycloakError",
 ]

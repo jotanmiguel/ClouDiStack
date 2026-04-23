@@ -1,12 +1,10 @@
 """Keycloak user operations."""
 from __future__ import annotations
-import email
 import logging
 from typing import Any, Dict, List, Optional
-from httpx import get
-from keycloak.exceptions import KeycloakError
+from keycloak import KeycloakError
 from .base import KeycloakBaseClient
-from .exceptions import KeycloakClientError
+from clients.keycloak.exceptions import KeycloakClientError
 from models.keycloak_models import KeycloakUser
 
 log = logging.getLogger(__name__)
@@ -50,20 +48,11 @@ class KeycloakUsersClient(KeycloakBaseClient):
             return False
     
     def get_users(self, query: Dict[str, Any] | None = None) -> List[KeycloakUser]:
-        """
-        List all users (with optional filters).
-        
-        Args:
-            query: Optional filters like {"username": "joao", "email": "joao@example.com"}
-        
-        Returns:
-            List of KeycloakUser instances
-        """
         try:
             log.debug(f"Getting users with query: {query}")
             users_data = self._admin.get_users(query or {})
             log.debug(f"Got {len(users_data)} users")
-            return [KeycloakUser(**user_data, attributes=self.get_user_attributes(user_data["id"])) for user_data in users_data]
+            return [KeycloakUser(**user_data) for user_data in users_data]
         except KeycloakError as e:
             log.error(f"Failed to get users: {e}")
             return []
