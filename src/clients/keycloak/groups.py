@@ -105,6 +105,52 @@ class KeycloakGroupsClient(KeycloakBaseClient):
             self._handle_error(f"create_group({name})", e)
             return None
         
+    def update_group(self, group_id: str, payload: Dict[str, Any]) -> None:
+        """Update group — merges with existing data to avoid 400 errors."""
+        try:
+            current = self._admin.get_group(group_id)
+            
+            merged = {
+                "id":         current.get("id"),
+                "name":       current.get("name"),
+                "path":       current.get("path"),
+                "attributes": current.get("attributes") or {},
+                **payload,
+            }
+            
+            if "attributes" in payload and "attributes" in current:
+                merged["attributes"] = {
+                    **current.get("attributes", {}),
+                    **payload["attributes"],
+                }
+            
+            # Normaliza atributos — garante que todos os valores são listas
+            merged["attributes"] = self._normalize_attrs(merged["attributes"])
+            
+            self._admin.update_group(group_id, merged)
+            log.info(f"Updated group {group_id}")
+        except KeycloakError as e:
+            self._handle_error(f"update_group({group_id})", e)
+
+
+    def _normalize_attrs(self, attributes: Dict[str, Any]) -> Dict[str, List[str]]:
+        """
+        Keycloak needs attributes in the form {"key": ["value"]}.
+        This method normalizes various input formats into that structure:
+                
+        "value"        → ["value"]
+        ["value"]      → ["value"]
+        123            → ["123"]
+        [123, 456]     → ["123", "456"]
+        """
+        normalized = {}
+        for key, value in attributes.items():
+            if isinstance(value, list):
+                normalized[key] = [str(v) for v in value]
+            else:
+                normalized[key] = [str(value)]
+        return normalized
+
     def delete_group(self, group_id: str) -> None:
         """Delete a group by ID."""
         try:
