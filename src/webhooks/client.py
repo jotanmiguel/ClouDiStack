@@ -18,9 +18,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class WebhookClient:
     """
-    Cliente para gerir webhooks do keycloak-events no Keycloak.
+    Client for managing Keycloak webhooks.
 
-    Exemplo:
+    Example:
         from ks2cs.webhooks import WebhookClient
 
         wc = WebhookClient(base_url="https://10.10.5.52:8443", realm="Cloud-DI")
@@ -70,25 +70,19 @@ class WebhookClient:
     # ─── CRUD ────────────────────────────────────────────────────────────────
 
     def list(self) -> list[dict]:
-        """Lista todos os webhooks do realm."""
+        """ List all webhooks configured for the realm. """
         r = requests.get(self._webhooks_url(), headers=self._headers(), verify=self.verify_ssl)
         r.raise_for_status()
         return r.json()
 
     def get(self, webhook_id: str) -> dict:
-        """Obtém um webhook pelo ID."""
+        """ Get details of a specific webhook by its ID. """
         r = requests.get(self._webhooks_url(webhook_id), headers=self._headers(), verify=self.verify_ssl)
         r.raise_for_status()
         return r.json()
 
-    def create(
-        self,
-        url: str,
-        secret: str,
-        event_types: list[str] | None = None,
-        enabled: bool = True,
-    ) -> dict:
-        """Cria um novo webhook."""
+    def create(self,url: str,secret: str,event_types: list[str] | None = None,enabled: bool = True,) -> dict:
+        """ Create a new webhook with the given URL, secret, event types, and enabled status. """
         payload = {
             "enabled":    str(enabled).lower(),
             "url":        url,
@@ -99,15 +93,8 @@ class WebhookClient:
         r.raise_for_status()
         return r.json() if r.content else {}
 
-    def update(
-        self,
-        webhook_id: str,
-        url: str,
-        secret: str,
-        event_types: list[str] | None = None,
-        enabled: bool = True,
-    ) -> None:
-        """Atualiza um webhook existente."""
+    def update(self,webhook_id: str,url: str,secret: str,event_types: list[str] | None = None,enabled: bool = True,) -> None:
+        """ Update an existing webhook. """
         payload = {
             "enabled":    str(enabled).lower(),
             "url":        url,
@@ -118,21 +105,21 @@ class WebhookClient:
         r.raise_for_status()
 
     def delete(self, webhook_id: str) -> None:
-        """Elimina um webhook."""
+        """ Delete a webhook by its ID. """
         r = requests.delete(self._webhooks_url(webhook_id), headers=self._headers(), verify=self.verify_ssl)
         r.raise_for_status()
 
     # ─── Sends (histórico) ───────────────────────────────────────────────────
 
     def sends(self, webhook_id: str) -> list[dict]:
-        """Lista o histórico de envios de um webhook."""
+        """ List all sends (payload deliveries) for a specific webhook. """
         url = f"{self._webhooks_url(webhook_id)}/sends"
         r = requests.get(url, headers=self._headers(), verify=self.verify_ssl)
         r.raise_for_status()
         return r.json()
 
     def resend(self, webhook_id: str, send_id: str) -> None:
-        """Reenvia um payload falhado."""
+        """ Resend a specific send (payload delivery) for a webhook. """
         url = f"{self._webhooks_url(webhook_id)}/sends/{send_id}/resend"
         r = requests.post(url, headers=self._headers(), verify=self.verify_ssl)
         r.raise_for_status()
@@ -141,6 +128,6 @@ class WebhookClient:
 
     @staticmethod
     def verify_signature(payload: bytes, signature: str, secret: str) -> bool:
-        """Verifica a assinatura HMAC de um payload recebido."""
+        """Verify the HMAC signature of a received payload."""
         expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)

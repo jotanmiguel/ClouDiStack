@@ -1,7 +1,5 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-import email
-from os import access
 from typing import Any, Dict, Optional
 import json
 
@@ -39,6 +37,21 @@ class KeycloakUser:
     disableableCredentialTypes: list[str] = field(default_factory=list)
     requiredActions: list[str] = field(default_factory=list)
     access: Dict[str, Any] = field(default_factory=dict)
+    
+    def __repr__(self) -> str:  # pragma: no cover - readable console representation
+        try:
+            data = {
+                "id": self.id,
+                "username": self.username or None,
+                "email": self.email or None,
+            }
+            return json.dumps(data, ensure_ascii=False, indent=2)
+        except (TypeError, KeyError, AttributeError):
+            return f"KeycloakUser(id={self.id!r})"
+
+
+    def __str__(self) -> str:  # pragma: no cover
+        return self.__repr__()
     
 @dataclass(frozen=True)
 class KeycloakAdminEvent:

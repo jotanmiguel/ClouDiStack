@@ -142,7 +142,18 @@ class KeycloakGroupsClient(KeycloakBaseClient):
         except KeycloakError as e:
             self._handle_error(f"update_group({group_id})", e)
 
-
+    def delete_group(self, group_id: str) -> None:
+        """Delete a group by ID."""
+        try:
+            self._admin.delete_group(group_id)
+            log.info(f"Deleted group {group_id}")
+        except KeycloakError as e:
+            self._handle_error(f"delete_group({group_id})", e)
+            
+    # ============================================================
+    # INTERNAL UTILITIES
+    # ============================================================
+    
     def _normalize_attrs(self, attributes: Dict[str, Any]) -> Dict[str, List[str]]:
         """
         Keycloak needs attributes in the form {"key": ["value"]}.
@@ -160,11 +171,3 @@ class KeycloakGroupsClient(KeycloakBaseClient):
             else:
                 normalized[key] = [str(value)]
         return normalized
-
-    def delete_group(self, group_id: str) -> None:
-        """Delete a group by ID."""
-        try:
-            self._admin.delete_group(group_id)
-            log.info(f"Deleted group {group_id}")
-        except KeycloakError as e:
-            self._handle_error(f"delete_group({group_id})", e)

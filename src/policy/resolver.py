@@ -6,6 +6,7 @@ from .models import QuotaPolicy, BASE_POLICIES
 log = logging.getLogger(__name__)
 
 GROUP_PRIORITY = {
+    "users":       0,
     "guests":      0,
     "students":    1,
     "staff":       2,

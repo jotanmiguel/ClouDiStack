@@ -8,11 +8,7 @@ from .events import KeycloakEventsClient
 log = logging.getLogger(__name__)
 
 
-class KeycloakClient(
-    KeycloakUsersClient,
-    KeycloakGroupsClient,
-    KeycloakEventsClient
-):
+class KeycloakClient(KeycloakUsersClient,KeycloakGroupsClient,KeycloakEventsClient):
     """
     Main Keycloak HTTP client.
     Combines users, groups, and events operations.

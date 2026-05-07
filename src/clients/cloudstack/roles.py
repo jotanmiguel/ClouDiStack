@@ -21,6 +21,7 @@ class CloudStackRolesClient(CloudStackBaseClient):
             return roles
         except Exception as e:
             self._handle_error("list_roles", e)
+            return []
     
     def get_role(self, role_id: str) -> Dict[str, Any] | None:
         """Get role by ID."""
@@ -39,6 +40,11 @@ class CloudStackRolesClient(CloudStackBaseClient):
             return roles[0] if roles else None
         except Exception as e:
             self._handle_error(f"get_role_by_name({role_name})", e)
+            
+    def get_role_id_by_name(self, role_name: str) -> str | None:
+        """Get role ID by name."""
+        role = self.get_role_by_name(role_name)
+        return role.get("id") if role else None
     
     def list_role_permissions(self, role_id: str) -> List[Dict[str, Any]]:
         """List permissions for a role."""
@@ -49,13 +55,9 @@ class CloudStackRolesClient(CloudStackBaseClient):
             return perms
         except Exception as e:
             self._handle_error(f"list_role_permissions({role_id})", e)
+            return []
     
-    def create_role(
-        self,
-        name: str,
-        description: str = "",
-        role_type: str = "User"
-    ) -> str | None:
+    def create_role(self, name: str, description: str = "", role_type: str = "User") -> str | None:
         """Create a new role. Returns role ID."""
         try:
             log.debug(f"Creating role {name}")

@@ -1,11 +1,43 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-import email
-from os import access
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, TypedDict, cast
 import json
 
-from attr import attributes
+
+class UserProfileMetadata(TypedDict, total=False):
+    attributes: Dict[str, Any]
+    groups: List[Dict[str, Any]]
+
+
+class CredentialRepresentation(TypedDict, total=False):
+    id: str
+    type: str
+    userLabel: str
+    createdDate: int
+    secretData: str
+    credentialData: str
+    priority: int
+    temporary: bool
+    value: str
+
+
+class FederatedIdentityRepresentation(TypedDict, total=False):
+    identityProvider: str
+    userId: str
+    userName: str
+
+
+class UserConsentRepresentation(TypedDict, total=False):
+    clientId: str
+    grantedClientScopes: List[str]
+    createdDate: int
+    lastUpdatedDate: int
+
+
+class SocialLinkRepresentation(TypedDict, total=False):
+    socialProvider: str
+    socialUserId: str
+    socialUsername: str
 
 @dataclass(frozen=True)
 class KeycloakUserCreateEvent:
@@ -23,26 +55,55 @@ class KeycloakUserCreateEvent:
     def time(self) -> float:
         """Timestamp em segundos (útil para logs)."""
         return self.time_ms / 1000.0
-    
+
 @dataclass(frozen=True)
 class KeycloakUser:
     id: str
-    emailVerified: bool
-    createdTimestamp: int
-    enabled: bool
-    emailVerified: bool
-    
-    # optional
-    attributes: Dict[str, Any] = field(default_factory=dict)
-    email: Optional[str] = None
-    username: Optional[str] = None
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
+    username: str = ""
+    firstName: str = ""
+    lastName: str = ""
+    email: str = ""
+    emailVerified: bool = False
+    attributes: Dict[str, List[Any]] = field(default_factory=dict)
+    userProfileMetadata: UserProfileMetadata = field(default_factory=lambda: cast(UserProfileMetadata, {}))
+    enabled: bool = True
+    self: str = ""
+    origin: str = ""
+    createdTimestamp: int = 0
     totp: bool = False
-    notBefore: Optional[int] = 0
-    disableableCredentialTypes: list[str] = field(default_factory=list)
-    requiredActions: list[str] = field(default_factory=list)
-    access: Dict[str, Any] = field(default_factory=dict)
+    federationLink: str = ""
+    serviceAccountClientId: str = ""
+    credentials: List[CredentialRepresentation] = field(default_factory=list)
+    disableableCredentialTypes: List[str] = field(default_factory=list)
+    requiredActions: List[str] = field(default_factory=list)
+    federatedIdentities: List[FederatedIdentityRepresentation] = field(default_factory=list)
+    realmRoles: List[str] = field(default_factory=list)
+    clientRoles: Dict[str, List[Any]] = field(default_factory=dict)
+    clientConsents: List[UserConsentRepresentation] = field(default_factory=list)
+    notBefore: int = 0
+    applicationRoles: Dict[str, List[Any]] = field(default_factory=dict)
+    socialLinks: List[SocialLinkRepresentation] = field(default_factory=list)
+    groups: List[str] = field(default_factory=list)
+    access: Dict[str, bool] = field(default_factory=dict)
+    
+    def __repr__(self) -> str:  # pragma: no cover - simple readable representation
+        try:
+            data = {
+                "id": self.id,
+                "username": self.username or None,
+                "email": self.email or None,
+                "groups": [g.lstrip("/") for g in self.groups] if self.groups else [],
+                "attributes": (
+                    {k: (v if not isinstance(v, list) else v) for k, v in self.attributes.items()}
+                    if isinstance(self.attributes, dict) else {}
+                ),
+            }
+            return json.dumps(data, ensure_ascii=False, indent=2)
+        except (TypeError, KeyError, AttributeError):
+            return f"KeycloakUser(id={self.id!r})"
+
+    def __str__(self) -> str:  # pragma: no cover
+        return self.__repr__()
     
 @dataclass(frozen=True)
 class KeycloakAdminEvent:

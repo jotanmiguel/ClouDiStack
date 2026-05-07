@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
 
     setup_logging()
-    kc = get_keycloak()
+    kc = get_keycloak()\
 
     setup = KeycloakGroupSetup(kc)
     report = setup.run(dry_run=args.dry_run)

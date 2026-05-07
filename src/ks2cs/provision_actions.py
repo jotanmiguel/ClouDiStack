@@ -1,9 +1,7 @@
 # ks2cs/provision_actions.py
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Literal, Optional
-
-Role = Literal["student", "staff"]
+Role = str
 
 @dataclass(frozen=True)
 class ProvisionResult:

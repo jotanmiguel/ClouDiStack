@@ -13,7 +13,8 @@ from ks2cs.handler import (
     handle_user_create_event,
     handle_user_delete_event,
     handle_user_update_event,
-    handle_group_membership_create_event,
+    handle_group_membership_change_event,
+    handle_group_sync_event,
 )
 from models.keycloak_models import to_user_create_event
 from clients.cloudstack.client import CloudStackClient
@@ -60,7 +61,13 @@ def _handle_update(raw):
 
 def _handle_group_membership_create(raw):
     kc, cs = _require_clients()
-    return handle_group_membership_create_event(kc=kc, cs=cs, raw=raw)
+    return handle_group_membership_change_event(kc=kc, cs=cs, raw=raw, operation="CREATE")
+
+def _handle_group_sync(raw):
+    kc, cs = _require_clients()
+    # determine operation type from payload
+    op = raw.get("operationType") or raw.get("operation") or "CREATE"
+    return handle_group_sync_event(kc=kc, cs=cs, raw=raw, operation=op)
 
 # ─── Router ────────────────────────────────────────────────────
 
@@ -71,6 +78,7 @@ def _route_event(event_type: str, resource_type: str, operation_type: str, resou
         or resource_type == "GROUP_MEMBERSHIP"
         or "/groups/" in (resource_path or "")
     )
+    is_group = resource_type == "GROUP" or (resource_path or "").startswith("groups/")
 
     if event_type == "REGISTER":
         return _handle_create(raw)
@@ -80,8 +88,10 @@ def _route_event(event_type: str, resource_type: str, operation_type: str, resou
         return _handle_delete(raw)
     if is_user and operation_type == "UPDATE":
         return _handle_update(raw)
-    if is_group_membership and operation_type == "CREATE":
+    if is_group_membership and operation_type in {"CREATE", "DELETE"}:
         return _handle_group_membership_create(raw)
+    if is_group and operation_type in {"CREATE", "UPDATE", "DELETE"}:
+        return _handle_group_sync(raw)
 
     return None
 

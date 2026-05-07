@@ -77,6 +77,20 @@ GROUP_SCHEMA: Dict[str, Dict[str, Any]] = {
             "max_secondary_storage": ["10"],
         }
     },
+    "users": {
+        "attributes": {
+            "max_vms":               ["1"],
+            "max_cpu":               ["2"],
+            "max_ram_mb":            ["2048"],
+            "max_volumes":           ["2"],
+            "max_snapshots":         ["5"],
+            "max_public_ips":        ["0"],
+            "max_networks":          ["1"],
+            "max_vpc":               ["1"],
+            "max_primary_storage":   ["20"],
+            "max_secondary_storage": ["20"],
+        }
+    },
 }
 
 class KeycloakGroupSetup:

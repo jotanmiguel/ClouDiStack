@@ -4,6 +4,7 @@ from clients.keycloak.client import KeycloakClient
 from clients.cloudstack.client import CloudStackClient
 from .resolver import resolve_quota
 from .enforcer import PolicyEnforcer
+from ks2cs.mapping import _infer_group_from_email
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +30,15 @@ class PolicyService:
             attrs = full_group.get("attributes") or {} if full_group else {}
             group_attrs_list.append((g["name"].lower(), attrs))
             log.debug("Group %s attrs: %s", g["name"], attrs)
+
+        # 2b. Se nenhum grupo encontrado, tentar inferir do email (fallback)
+        if not group_attrs_list:
+            kc_user = self.kc.get_user(kc_user_id)
+            if kc_user and hasattr(kc_user, 'email') and kc_user.email:
+                inferred_group = _infer_group_from_email(kc_user.email)
+                if inferred_group:
+                    log.info("No KC groups found for user %s — inferred group '%s' from email '%s'", kc_user_id, inferred_group, kc_user.email)
+                    group_attrs_list = [(inferred_group, {})]
 
         # 3. Buscar atributos do user (overrides individuais)
         user_attrs = self.kc.get_user_attributes(kc_user_id) or {}

@@ -12,17 +12,25 @@ log = logging.getLogger(__name__)
 
 class KeycloakUsersClient(KeycloakBaseClient):
     """Keycloak user operations."""
-    
-    # ============================================================
-    # READ OPERATIONS
-    # ============================================================
-    
+        
     def get_user(self, user_id: str) -> KeycloakUser | None:
         try:
             user_data = self._admin.get_user(user_id)
             log.debug(f"Got user {user_id}")
+                        
+            # Fetch user's groups separately (not included in get_user() by default)
+            # TODO: create a model for KeycloakGroup and return groups as list of objects instead of just names
+            try:
+                user_groups = self._admin.get_user_groups(user_id)
+                log.debug(f"Got {len(user_groups)} groups for user {user_id}")
+                # Convert groups to list of group names/paths
+                group_names = [f"{g.get('path', g.get('name', ''))}" for g in user_groups]
+                user_data["groups"] = group_names
+            except KeycloakError as e:
+                log.warning(f"Failed to fetch user groups for {user_id}: {e}")
+                user_data["groups"] = []
 
-            return KeycloakUser(**user_data)  # ❌ REMOVE chamada extra
+            return KeycloakUser(**user_data)
 
         except KeycloakError as e:
             log.error(f"Failed to get user {user_id}: {e}")
@@ -78,9 +86,8 @@ class KeycloakUsersClient(KeycloakBaseClient):
             "enabled": user.enabled,
             "attributes": user.attributes,
         }
-    # ============================================================
+
     # WRITE OPERATIONS
-    # ============================================================
     
     def create_user(self, payload: Dict[str, Any]) -> Optional[str]:
         """

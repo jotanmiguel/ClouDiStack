@@ -19,12 +19,7 @@ class CloudStackAccountsClient(CloudStackBaseClient):
     # READ OPERATIONS
     # ============================================================
     
-    def list_accounts(
-        self,
-        filters: Dict[str, Any] | None = None,
-        listall: bool = True,
-        details: str = "min"
-    ) -> List[Dict[str, Any]]:
+    def list_accounts(self,filters: Dict[str, Any] | None = None,listall: bool = True,details: str = "min") -> List[Dict[str, Any]]:
         """List accounts with optional filters."""
         try:
             params: Dict[str, Any] = {
@@ -156,6 +151,10 @@ class CloudStackAccountsClient(CloudStackBaseClient):
             log.info(f"Updated account {account_id}")
         except Exception as e:
             self._handle_error(f"update_account({account_id})", e)
+
+    def change_account_role(self, account_id: str, role_id: str) -> None:
+        """Change an account role in CloudStack."""
+        self.update_account(account_id, {"roleid": role_id})
     
     def disable_account(self, account_id: str) -> None:
         """Disable account (preserves data)."""
