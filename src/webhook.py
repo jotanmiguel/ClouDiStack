@@ -74,7 +74,7 @@ def _handle_group_sync(raw):
 def _route_event(event_type: str, resource_type: str, operation_type: str, resource_path: str, raw: dict):
     is_user = resource_type == "USER"
     is_group_membership = (
-        event_type == "GROUP_MEMBERSHIP"
+        (event_type and "GROUP_MEMBERSHIP" in event_type)
         or resource_type == "GROUP_MEMBERSHIP"
         or "/groups/" in (resource_path or "")
     )

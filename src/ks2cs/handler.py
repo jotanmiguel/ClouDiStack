@@ -267,15 +267,11 @@ def handle_user_create_event(kc: KeycloakClient,cs: CloudStackClient,event: Keyc
                 log.error("Failed to add user %s to group '%s': %s", event.user_id, group_name, e)
 
     # 5. Aplicar quotas
-    try:
-        policy_svc = PolicyService(kc=kc, cs=cs)
-        policy_result = policy_svc.enforce_for_user(event.user_id)
-        log.info("POLICY_APPLIED kc_user_id=%s result=%s", event.user_id, policy_result)
-    except Exception as e:
-        log.error("POLICY_FAILED kc_user_id=%s error=%s", event.user_id, e)
-
-    role_sync_result = _sync_cloudstack_role(kc, cs, event.user_id)
-    log.info("ROLE_SYNC kc_user_id=%s result=%s", event.user_id, role_sync_result)
+    # Quotas and policy enforcement are handled by the GROUP_MEMBERSHIP
+    # event handler (GROUP_MEMBERSHIP CREATE) once the user has been
+    # added to the appropriate Keycloak group. Removing enforcement here
+    # prevents a race where the policy is applied before Keycloak group
+    # membership is visible.
 
     return ProvisionResult(
         role=role_name,
@@ -311,19 +307,20 @@ def handle_user_update_event(*, kc: KeycloakClient, cs: CloudStackClient, raw: d
     current_firstname = attrs.get("firstname", [None])[0]
     current_lastname = attrs.get("lastname", [None])[0]
 
-    email     = rep.get("email") or current_email
-    firstname = rep.get("firstName") or current_firstname
-    lastname  = rep.get("lastName") or current_lastname
+    # Use updated values from `rep` directly when provided by the event
+    email = rep.get("email")
+    firstname = rep.get("firstName")
+    lastname = rep.get("lastName")
 
     updates = {}
 
-    if email != current_email:
+    if email is not None and email != current_email:
         updates["email"] = email
 
-    if firstname != current_firstname:
+    if firstname is not None and firstname != current_firstname:
         updates["firstname"] = firstname
 
-    if lastname != current_lastname:
+    if lastname is not None and lastname != current_lastname:
         updates["lastname"] = lastname
 
     if not updates:
